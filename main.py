@@ -40,8 +40,9 @@ def extract_details(item):
     return output
 
 
-def main(search_term):
-    """Run Main program"""
+def main(search_term, level):
+    """Run Main program,
+           level: 0:Search Page Results, 1 : Product Page Results"""
     # startup the webdriver
     driver = webdriver.Chrome(ChromeDriverManager().install())
     records = []
@@ -57,12 +58,30 @@ def main(search_term):
             if record:
                 records.append(record)
 
-    driver.close()
     df = pd.DataFrame(records)
     df.columns = ['Title', 'Author', 'Link', 'Price', "Rating", 'Rating Count']
-    df.to_csv('amazon_books_records.csv', sep=',')
 
+    if level > 0:
+        # additional code for next level depth crawling and scraping product details, product description
+        list_language = []
+        list_book_description = []
+        for i in range(len(df['Link'])):
+            driver.get(df['Link'][i])
+            soup2 = BeautifulSoup(driver.page_source, 'html.parser')
+            book_description = soup2.find('div', {
+                "class": "a-expander-content a-expander-partial-collapse-content"}).text.strip()
+            product_details = soup2.find('div', {"id": "detailBullets_feature_div"})
+            language = product_details.find_all('span', {'class': 'a-list-item'})[1].find_all('span')[1].text.strip()
+
+            list_language.append(language)
+            list_book_description.append(book_description)
+
+        df['Langauge'] = list_language
+        df['Description'] = list_book_description
+
+    driver.close()
+    df.to_csv('amazon_books_records_with_description.csv', sep=',')
 
 
 if __name__ == '__main__':
-    main('Books')
+    main('Books',0)
